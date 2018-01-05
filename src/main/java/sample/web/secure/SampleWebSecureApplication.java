@@ -45,41 +45,41 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Controller
 public class SampleWebSecureApplication implements WebMvcConfigurer {
 
-	@GetMapping("/")
-	public String home(Map<String, Object> model) {
-		model.put("message", "Hello World");
-		model.put("title", "Hello Home");
-		model.put("date", new Date());
-		return "home";
-	}
-
-	@RequestMapping("/foo")
-	public String foo() {
-		throw new RuntimeException("Expected exception in controller");
-	}
-
-	@RequestMapping("/api/**")
-    @ResponseBody
-    public String api() {
-	    return "api";
+    @GetMapping("/")
+    public String home(Map<String, Object> model) {
+        model.put("message", "Hello World");
+        model.put("title", "Hello Home");
+        model.put("date", new Date());
+        return "home";
     }
 
-	@Override
-	public void addViewControllers(ViewControllerRegistry registry) {
-		registry.addViewController("/login").setViewName("login");
-	}
+    @RequestMapping("/foo")
+    public String foo() {
+        throw new RuntimeException("Expected exception in controller");
+    }
 
-	public static void main(String[] args) throws Exception {
-		new SpringApplicationBuilder(SampleWebSecureApplication.class).run(args);
-	}
+    @RequestMapping("/api/**")
+    @ResponseBody
+    public String api() {
+        return "api";
+    }
+
+    @Override
+    public void addViewControllers(ViewControllerRegistry registry) {
+        registry.addViewController("/login").setViewName("login");
+    }
+
+    public static void main(String[] args) throws Exception {
+        new SpringApplicationBuilder(SampleWebSecureApplication.class).run(args);
+    }
 
 
-	@EnableWebSecurity
-	public static class MultiHttpSecurityConfig {
+    @EnableWebSecurity
+    public static class MultiHttpSecurityConfig {
 
-		@Configuration
-		@Order(1)
-		public static class ApiWebSecurityConfigurationAdapter extends WebSecurityConfigurerAdapter {
+        @Configuration
+        @Order(1)
+        public static class ApiWebSecurityConfigurationAdapter extends WebSecurityConfigurerAdapter {
 
             @Autowired
             public void configureGlobal(AuthenticationManagerBuilder auth) throws Exception {
@@ -89,27 +89,27 @@ public class SampleWebSecureApplication implements WebMvcConfigurer {
                         .withUser("legacy").password("$2a$10$dXJ3SW6G7P50lGmMkkmwe.20cQQubK3.HZWzG3YB1tlRy.fqvM/BG").roles("LEGACY");
             }
 
-			protected void configure(HttpSecurity http) throws Exception {
-				http
-						.antMatcher("/api/**")
-						.authorizeRequests()
-						.anyRequest().hasRole("LEGACY")
-						.and()
-						.httpBasic();
-			}
-		}
+            protected void configure(HttpSecurity http) throws Exception {
+                http
+                        .antMatcher("/api/**")
+                        .authorizeRequests()
+                        .anyRequest().hasRole("LEGACY")
+                        .and()
+                        .httpBasic();
+            }
+        }
 
-		@Configuration
-		public static class FormLoginWebSecurityConfigurerAdapter extends WebSecurityConfigurerAdapter {
-			@Override
-			protected void configure(HttpSecurity http) throws Exception {
-				http
-						.authorizeRequests()
-						//.anyRequest().authenticated()
-                        .antMatchers("/", "/foo").authenticated()
-						.and()
-						.oauth2Login();
-			}
-		}
-	}
+        @Configuration
+        public static class FormLoginWebSecurityConfigurerAdapter extends WebSecurityConfigurerAdapter {
+            @Override
+            protected void configure(HttpSecurity http) throws Exception {
+                http
+                        .authorizeRequests()
+                        .anyRequest().authenticated()
+                        //.antMatchers("/", "/foo").authenticated()
+                        .and()
+                        .oauth2Login();
+            }
+        }
+    }
 }
