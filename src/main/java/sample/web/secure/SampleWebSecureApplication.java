@@ -86,7 +86,9 @@ public class SampleWebSecureApplication implements WebMvcConfigurer {
                 // password is "password"
                 auth.inMemoryAuthentication()
                         .passwordEncoder(new BCryptPasswordEncoder())
-                        .withUser("legacy").password("$2a$10$dXJ3SW6G7P50lGmMkkmwe.20cQQubK3.HZWzG3YB1tlRy.fqvM/BG").roles("LEGACY");
+                        .withUser("legacy")
+                        .password("$2a$10$dXJ3SW6G7P50lGmMkkmwe.20cQQubK3.HZWzG3YB1tlRy.fqvM/BG")
+                        .roles("LEGACY");
             }
 
             protected void configure(HttpSecurity http) throws Exception {
@@ -100,7 +102,7 @@ public class SampleWebSecureApplication implements WebMvcConfigurer {
         }
 
         @Configuration
-        public static class FormLoginWebSecurityConfigurerAdapter extends WebSecurityConfigurerAdapter {
+        public static class Oauth2LoginWebSecurityConfigurerAdapter extends WebSecurityConfigurerAdapter {
             @Override
             protected void configure(HttpSecurity http) throws Exception {
                 http

@@ -16,10 +16,12 @@
 
 package sample.web.secure;
 
+import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.commons.codec.binary.Base64;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -49,69 +51,77 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
 public class SampleSecureApplicationTests {
 
-	@Autowired
-	private TestRestTemplate restTemplate;
+    @Autowired
+    private TestRestTemplate restTemplate;
 
-	@LocalServerPort
-	private int port;
+    @LocalServerPort
+    private int port;
 
-	@Test
-	public void testHome() {
-		HttpHeaders headers = new HttpHeaders();
-		headers.setAccept(Arrays.asList(MediaType.TEXT_HTML));
-		ResponseEntity<String> entity = this.restTemplate.exchange("/", HttpMethod.GET,
-				new HttpEntity<Void>(headers), String.class);
-		assertThat(entity.getStatusCode()).isEqualTo(HttpStatus.FOUND);
-		assertThat(entity.getHeaders().getLocation().toString())
-				.endsWith(this.port + "/login");
-	}
+    @Test
+    public void testHome() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setAccept(Arrays.asList(MediaType.TEXT_HTML));
+        ResponseEntity<String> entity = this.restTemplate.exchange("/", HttpMethod.GET,
+                new HttpEntity<Void>(headers), String.class);
+        assertThat(entity.getStatusCode()).isEqualTo(HttpStatus.FOUND);
+        assertThat(entity.getHeaders().getLocation().toString())
+                .endsWith(this.port + "/login");
+    }
 
-	@Test
-	public void testLoginPage() {
-		HttpHeaders headers = new HttpHeaders();
-		headers.setAccept(Arrays.asList(MediaType.TEXT_HTML));
-		ResponseEntity<String> entity = this.restTemplate.exchange("/login",
-				HttpMethod.GET, new HttpEntity<Void>(headers), String.class);
-		assertThat(entity.getStatusCode()).isEqualTo(HttpStatus.OK);
-		assertThat(entity.getBody()).contains("_csrf");
-	}
+    @Test
+    public void testLoginPage() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setAccept(Arrays.asList(MediaType.TEXT_HTML));
+        ResponseEntity<String> entity = this.restTemplate.exchange("/login",
+                HttpMethod.GET, new HttpEntity<Void>(headers), String.class);
+        assertThat(entity.getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
 
-	@Test
-	public void testLogin() {
-		HttpHeaders headers = getHeaders();
-		headers.setAccept(Arrays.asList(MediaType.TEXT_HTML));
-		headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-		MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
-		form.set("username", "user");
-		form.set("password", "password");
-		ResponseEntity<String> entity = this.restTemplate.exchange("/login",
-				HttpMethod.POST, new HttpEntity<>(form, headers), String.class);
-		assertThat(entity.getStatusCode()).isEqualTo(HttpStatus.FOUND);
-		assertThat(entity.getHeaders().getLocation().toString())
-				.endsWith(this.port + "/");
-		assertThat(entity.getHeaders().get("Set-Cookie")).isNotNull();
-	}
+    /*
+    Basic no auth: 401
+     */
+    @Test
+    public void testBasicNoAuth() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setAccept(Arrays.asList(MediaType.TEXT_HTML));
+        ResponseEntity<String> entity = this.restTemplate.exchange("/api", HttpMethod.GET,
+                new HttpEntity<Void>(headers), String.class);
+        assertThat(entity.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
 
-	private HttpHeaders getHeaders() {
-		HttpHeaders headers = new HttpHeaders();
-		ResponseEntity<String> page = this.restTemplate.getForEntity("/login",
-				String.class);
-		assertThat(page.getStatusCode()).isEqualTo(HttpStatus.OK);
-		String cookie = page.getHeaders().getFirst("Set-Cookie");
-		headers.set("Cookie", cookie);
-		Pattern pattern = Pattern.compile("(?s).*name=\"_csrf\".*?value=\"([^\"]+).*");
-		Matcher matcher = pattern.matcher(page.getBody());
-		assertThat(matcher.matches()).as(page.getBody()).isTrue();
-		headers.set("X-CSRF-TOKEN", matcher.group(1));
-		return headers;
-	}
+    /*
+    Basic, valid auth: 200
+     */
+    @Test
+    public void testBasicWithAuth() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setAccept(Arrays.asList(MediaType.TEXT_HTML));
+        headers.set("Authorization", getBasicHeader("legacy", "password"));
+        ResponseEntity<String> entity = this.restTemplate.exchange("/api", HttpMethod.GET,
+                new HttpEntity<Void>(headers), String.class);
+        assertThat(entity.getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
 
-	@Test
-	public void testCss() {
-		ResponseEntity<String> entity = this.restTemplate
-				.getForEntity("/css/bootstrap.min.css", String.class);
-		assertThat(entity.getStatusCode()).isEqualTo(HttpStatus.OK);
-		assertThat(entity.getBody()).contains("body");
-	}
+    /*
+    Basic, invalid auth: redirect to oauth2 login
+     */
+    @Test
+    public void testBasicWithWrongAuth() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setAccept(Arrays.asList(MediaType.TEXT_HTML));
+        headers.set("Authorization", getBasicHeader("legacy", "password1"));
+        ResponseEntity<String> entity = this.restTemplate.exchange("/api", HttpMethod.GET,
+                new HttpEntity<Void>(headers), String.class);
+        assertThat(entity.getStatusCode()).isEqualTo(HttpStatus.FOUND);
+        assertThat(entity.getHeaders().getLocation().toString())
+                .endsWith(this.port + "/login");
+    }
+
+    private String getBasicHeader(String username, String password) {
+        String auth = username + ":" + password;
+        byte[] encodedAuth = Base64.encodeBase64(auth.getBytes(Charset.forName("US-ASCII")));
+        String authHeader = "Basic " + new String(encodedAuth);
+        return authHeader;
+    }
 
 }
